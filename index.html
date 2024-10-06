@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="question-overlay" style="position: absolute; top: 10px; left: 20px; background-color: rgba(255, 255, 255, 0.8); padding: 10px; border-radius: 5px;">
+        <h3 id="question"></h3>
+    </div>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+    </style>
+    <canvas id="canvas"></canvas>
+    <script type="module" src="main.js"></script>
+    <script>
+        let allQuestions = [];
+        let remainingQuestions = [];
+
+        async function loadQuestions() {
+            const response = await fetch('./questions.csv');
+            const data = await response.text();
+            const rows = data.split('\n').slice(1);
+            allQuestions = rows.map(row => {
+                const [question, optionA, optionB, optionC, optionD, correctAnswer] = row.split(',');
+                return { question, options: [optionA, optionB, optionC, optionD], correctAnswer };
+            });
+            remainingQuestions = [...allQuestions];
+        }
+
+        function displayQuestion(question) {
+            const questionElement = document.getElementById('question');
+            questionElement.textContent = question.question;
+            
+            const event = new CustomEvent('questionUpdated', { detail: question });
+            window.dispatchEvent(event);
+        }
+
+        function displayNextQuestion() {
+            console.log('Remaining questions:', remainingQuestions.length);
+            if (remainingQuestions.length > 0) {
+                const question = remainingQuestions.shift(); // Take the first question from the array
+                console.log('Selected question:', question);
+                if (question && question.question && question.options) {
+                    displayQuestion(question);
+                    return true;
+                } else {
+                    console.error('Invalid question object:', question);
+                    return displayNextQuestion(); // Try again with the next question
+                }
+            } else {
+                console.log('No more questions remaining');
+                const event = new CustomEvent('questionUpdated', { detail: undefined });
+                window.dispatchEvent(event);
+                return false;
+            }
+        }
+
+        function showPlayAgainPopup() {
+            const popup = document.createElement('div');
+            popup.style.position = 'absolute';
+            popup.style.top = '50%';
+            popup.style.left = '50%';
+            popup.style.transform = 'translate(-50%, -50%)';
+            popup.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+            popup.style.padding = '20px';
+            popup.style.borderRadius = '10px';
+            popup.style.textAlign = 'center';
+            popup.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+            popup.style.zIndex = '1000';
+
+            const message = document.createElement('p');
+            message.textContent = `Game Over! Your final score is ${window.score}.`;
+            message.style.fontSize = '18px';
+            message.style.marginBottom = '20px';
+
+            const button = document.createElement('button');
+            button.textContent = 'Play Again';
+            button.style.padding = '10px 20px';
+            button.style.fontSize = '16px';
+            button.style.cursor = 'pointer';
+            button.onclick = () => location.reload();
+
+            popup.appendChild(message);
+            popup.appendChild(button);
+            document.body.appendChild(popup);
+        }
+
+        // Expose functions to the global scope
+        window.displayNextQuestion = displayNextQuestion;
+        window.showPlayAgainPopup = showPlayAgainPopup;
+
+        // Wait for main.js to load before loading questions and displaying the first question
+        window.addEventListener('load', async () => {
+            console.log('Window loaded, loading questions');
+            await loadQuestions();
+            setTimeout(displayNextQuestion, 100);
+        });
+    </script>
+</body>
+</html>
